@@ -2,6 +2,7 @@ import tkinter as tk
 import paramiko
 import datetime
 import threading
+import shutil
 import json
 import sys
 import os
@@ -10,8 +11,10 @@ import os
 version = "β1.0"
 title = (f"RUI-MOD-server update-tool  Ver.{version}")
 
+normalpath = "C:/Minecraft/mod 1.12.2"
 remote = "./Free-SFTP2/test/test"
-local = "./test"
+local = "./tmp"
+
 
 
 RUI = """################################################################################
@@ -44,7 +47,7 @@ class window(tk.Frame):
 
     def set_widget(self):
         self.bt = tk.Button()
-        self.bt["command"] = tools.start
+        self.bt["command"] = tools.test
         self.bt["text"] = "button"
         self.bt.place(x=0, y=0)
         self.pack()
@@ -65,28 +68,80 @@ class window(tk.Frame):
 
 class tools():
     config = {}
+    def test():
+        tools.replace()
 
     def start():
         section = "START"
         main.callback(section, "start")
-        tools.load_setting()
-        thread = threading.Thread(target=sftp_download)
-        thread.start()
+        try:
+            tools.cheak()
+            tools.load_setting()
+            thread1 = threading.Thread(target=file_download)
+            thread1.start()
+        except Exception as error:
+            return False
+
+    def cheak():
+        section = "CHEAK"
+        try:
+            main.callback(section, "cheak config")
+            os.path.isfile("./config.json")
+            main.callback(section, "cheak success")
+        except Exception as error:
+            main.callback(section,error)
+            return False
 
     def load_setting():
         section = "CONFIG"
         try:
-            os.path.isfile("./config.json")
+            main.callback(section, "load config")
             with open("config.json", "r", encoding="utf-8_sig") as f:
                 tools.config = json.load(f)
-            print(tools.config)
-            main.callback(section, "success")
+            main.callback(section, "load success")
+        except Exception as error:
+            main.callback(section, error)
+            return False
+    
+    def replace():
+        section = "REPLACE"
+        try:
+            main.callback(section, "cheak mods folder")
+            if os.path.isdir(f"{normalpath}/mods"):
+                shutil.rmtree(f"{normalpath}/mods")
+                main.callback(section, "success remove of mods folder")
+                main.callback(section, "copy mods folder")
+                shutil.copytree(f"{local}/pack/mods",f"{normalpath}/mods")
+                main.callback(section, "success copy for mods folder")
+            else:
+                main.callback(section, "no mods folder")
+                main.callback(section, "copy mods folder")
+                shutil.copytree(f"{local}/pack/mods",f"{normalpath}/mods")
+                main.callback(section, "success copy for mods folder")
+            main.callback(section, "load setting")
+            with open(f"{local}/pack/other/setting.json", "r", encoding="utf-8_sig") as f:
+                tmp = json.load(f)
+            main.callback(section, "load success")
+            for file,path in tmp.items():
+                main.callback(section, f"cheak {file}")
+                if os.path.isdir(f"{normalpath}/{path}"):
+                    main.callback(section, f"replace {file}")
+                    shutil.copy(f"{local}/pack/other/{file}",f"{normalpath}/{path}/{file}")
+                    main.callback(section, f"succes replace for {file}")
+                else:
+                    main.callback(section, f"no {path}")
+                    main.callback(section, f"make {path}")
+                    os.mkdir(f"{normalpath}/{path}")
+                    main.callback(section, f"succes make for {path}")
+                    main.callback(section, f"replace {file}")
+                    shutil.copy(f"{local}/pack/other/{file}",f"{normalpath}/{path}/{file}")
+                    main.callback(section, f"succes replace for {file}")
         except Exception as error:
             main.callback(section, error)
             return False
 
 
-def sftp_download():
+def file_download():
     section = "SFTP"
     try:
         transport = paramiko.Transport(
@@ -105,13 +160,25 @@ def sftp_download():
         main.callback(section, f"ending section")
         sftp.close()
         transport.close()
+        thread2 = threading.Thread(target=file_expansion)
+        thread2.start()
         return True
     except Exception as error:
         main.callback(section, error)
         return False
 
+def file_expansion():
+    section = "EXPANSION"
+    try:
+        main.callback(section, "zip expansion")
+        shutil.unpack_archive("latest",local)
+        main.callback(section, "expansion success")
+    except Exception as error:
+        main.callback(section, error)
+        return False
+
+
 
 if __name__ == '__main__':
     main = window(tk.Tk())
-    #sub = tools()
     main.mainloop()
